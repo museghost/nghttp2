@@ -22,7 +22,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 # XXX using 1.8.90 instead of 1.9.0-DEV
 project(nghttp2 VERSION 1.37.0)
 
@@ -52,10 +52,6 @@ endif()
 
 include(GNUInstallDirs)
 
-# For Python bindings and documentation
-# (Must be called before PythonLibs for matching versions.)
-find_package(PythonInterp)
-
 # Auto-detection of features that can be toggled
 find_package(OpenSSL 1.0.1)
 find_package(Libev 4.11)
@@ -71,9 +67,27 @@ set(ENABLE_HPACK_TOOLS_DEFAULT ${JANSSON_FOUND})
 # 2.0.8 is required because we use evconnlistener_set_error_cb()
 find_package(Libevent 2.0.8 COMPONENTS libevent openssl)
 set(ENABLE_EXAMPLES_DEFAULT ${LIBEVENT_OPENSSL_FOUND})
-find_package(Cython)
-find_package(PythonLibs)
-if(CYTHON_FOUND AND PYTHONLIBS_FOUND)
+
+# since CMake 3.12, the following should be fine
+find_package(Python COMPONENTS Interpreter Development)
+if(Python_FOUND)
+  get_filename_component( _python_path ${Python_EXECUTABLE} PATH )
+  find_program( CYTHON_EXECUTABLE
+    NAMES cython cython.bat cython3
+    HINTS ${_python_path}
+    )
+else()
+  find_program( CYTHON_EXECUTABLE
+    NAMES cython cython.bat cython3
+    )
+endif()
+
+include( FindPackageHandleStandardArgs )
+FIND_PACKAGE_HANDLE_STANDARD_ARGS( Cython REQUIRED_VARS CYTHON_EXECUTABLE )
+
+mark_as_advanced( CYTHON_EXECUTABLE )
+
+if(Cython_FOUND AND Python_FOUND)
   set(ENABLE_PYTHON_BINDINGS_DEFAULT ON)
 else()
   set(ENABLE_PYTHON_BINDINGS_DEFAULT OFF)
@@ -146,16 +160,9 @@ cmake_pop_check_state()
 set(APP_LIBRARIES)
 
 if(ENABLE_PYTHON_BINDINGS)
-  if(NOT (CYTHON_FOUND AND PYTHONLIBS_FOUND))
+  if(NOT (Cython_FOUND AND Python_FOUND))
     message(FATAL_ERROR "python bindings were requested "
       "(ENABLE_PYTHON_BINDINGS=1) but dependencies are not met.")
-  endif()
-  if(NOT PYTHON_VERSION_STRING STREQUAL PYTHONLIBS_VERSION_STRING)
-    message(FATAL_ERROR
-      "Python executable and library must have the same version!"
-      " Found Python ${PYTHON_VERSION_STRING} and"
-      " PythonLibs ${PYTHONLIBS_VERSION_STRING}"
-    )
   endif()
 endif()
 
@@ -480,10 +487,9 @@ message(STATUS "summary of build options:
       WARNCFLAGS:     ${WARNCFLAGS}
       CXX1XCXXFLAGS:  ${CXX1XCXXFLAGS}
     Python:
-      Python:         ${PYTHON_EXECUTABLE}
-      PYTHON_VERSION: ${PYTHON_VERSION_STRING}
-      Library version:${PYTHONLIBS_VERSION_STRING}
-      Cython:         ${CYTHON_EXECUTABLE}
+      Python:         ${Python_EXECUTABLE}
+      Python Version: ${Python_VERSION}
+      Cython:         ${Cython_EXECUTABLE}
     Test:
       CUnit:          ${HAVE_CUNIT} (LIBS='${CUNIT_LIBRARIES}')
       Failmalloc:     ${ENABLE_FAILMALLOC}
