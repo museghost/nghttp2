@@ -491,7 +491,7 @@ message(STATUS "summary of build options:
     Python:
       Python:         ${Python_EXECUTABLE}
       Python Version: ${Python_VERSION}
-      Cython:         ${Cython_EXECUTABLE}
+      Cython:         ${CYTHON_EXECUTABLE}
     Test:
       CUnit:          ${HAVE_CUNIT} (LIBS='${CUNIT_LIBRARIES}')
       Failmalloc:     ${ENABLE_FAILMALLOC}
